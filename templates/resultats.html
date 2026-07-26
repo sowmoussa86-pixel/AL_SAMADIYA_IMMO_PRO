@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+<h1>Résultats de la recherche</h1>
+
+{% if annonces %}
+
+{% for annonce in annonces %}
+
+<div>
+
+<h3>{{ annonce.titre }}</h3>
+
+<p>{{ annonce.region }}</p>
+
+<p>{{ annonce.categorie }}</p>
+
+<p>{{ annonce.prix }} FCFA</p>
+
+</div>
+
+{% endfor %}
+
+{% else %}
+
+<h3>Aucune annonce trouvée.</h3>
+
+{% endif %}
+
+</div>
+
+{% endblock %}

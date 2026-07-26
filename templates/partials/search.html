@@ -1,0 +1,48 @@
+<section class="search-section">
+
+    <div class="container">
+
+        <h2>🔍 Rechercher un bien</h2>
+
+        <form action="/recherche" method="GET" class="search-form">
+
+            <select name="region">
+                <option value="">Région</option>
+                <option>Dakar</option>
+                <option>Thiès</option>
+                <option>Diourbel</option>
+                <option>Saint-Louis</option>
+                <option>Kaolack</option>
+                <option>Ziguinchor</option>
+                <option>Touba</option>
+            </select>
+
+            <select name="categorie">
+                <option value="">Type de bien</option>
+                <option>Terrain</option>
+                <option>Maison</option>
+                <option>Appartement</option>
+                <option>Villa</option>
+                <option>Champ agricole</option>
+                <option>Local commercial</option>
+            </select>
+
+            <input
+                type="number"
+                name="prix_min"
+                placeholder="Prix min">
+
+            <input
+                type="number"
+                name="prix_max"
+                placeholder="Prix max">
+
+            <button type="submit">
+                🔎 Rechercher
+            </button>
+
+        </form>
+
+    </div>
+
+</section>

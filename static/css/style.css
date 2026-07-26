@@ -1,0 +1,237 @@
+body{
+
+background:#f5f7fa;
+
+font-family:Arial,Helvetica,sans-serif;
+
+}
+
+.topbar{
+
+background:#0a3d91;
+
+color:white;
+
+padding:8px;
+
+display:flex;
+
+justify-content:space-between;
+
+padding-left:50px;
+
+padding-right:50px;
+
+}
+
+.logo{
+
+font-size:30px;
+
+font-weight:bold;
+
+color:#0a3d91!important;
+
+}
+
+.navbar{
+
+padding:15px;
+
+}
+
+.nav-link{
+
+font-size:18px;
+
+margin-left:15px;
+
+font-weight:600;
+
+}
+
+.hero{
+
+padding:70px 0;
+
+background:white;
+
+}
+
+.hero h1{
+
+font-size:55px;
+
+font-weight:bold;
+
+color:#0a3d91;
+
+}
+
+.hero p{
+
+font-size:24px;
+
+margin:25px 0;
+
+}
+
+.hero img{
+
+border-radius:20px;
+
+box-shadow:0 15px 30px rgba(0,0,0,.15);
+
+}
+
+.btn{
+
+padding:15px 35px;
+
+font-size:20px;
+
+margin-right:15px;
+
+margin-top:15px;
+
+}
+.logo-img{
+    height:60px;
+    width:auto;
+    border-radius:8px;
+}
+
+.navbar-brand{
+    text-decoration:none;
+}
+/* ========================= */
+/* RECHERCHE */
+/* ========================= */
+
+.search-section{
+
+    background:white;
+
+    padding:60px 20px;
+
+}
+
+.search-section h2{
+
+    text-align:center;
+
+    color:#0b4ea2;
+
+    margin-bottom:35px;
+
+}
+
+.search-form{
+
+    display:grid;
+
+    grid-template-columns:repeat(5,1fr);
+
+    gap:15px;
+
+}
+
+.search-form select,
+.search-form input{
+
+    padding:15px;
+
+    border-radius:10px;
+
+    border:1px solid #ddd;
+
+    font-size:16px;
+
+}
+
+.search-form button{
+
+    background:#0b66ff;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:18px;
+
+    transition:.3s;
+
+}
+
+.search-form button:hover{
+
+    background:#0849b8;
+
+}
+.cards{
+
+    display:grid;
+
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+
+    gap:25px;
+
+    margin-top:30px;
+
+}
+
+.card-annonce{
+
+    background:white;
+
+    border-radius:15px;
+
+    overflow:hidden;
+
+    box-shadow:0 8px 25px rgba(0,0,0,.12);
+
+    transition:.3s;
+
+}
+
+.card-annonce:hover{
+
+    transform:translateY(-6px);
+
+}
+
+.card-annonce img{
+
+    width:100%;
+
+    height:220px;
+
+    object-fit:cover;
+
+}
+
+.card-annonce h3{
+
+    color:#0b4ea2;
+
+    padding:15px;
+
+}
+
+.card-annonce p{
+
+    padding:0 15px;
+
+}
+
+.card-annonce h4{
+
+    color:green;
+
+    padding:15px;
+
+}
