@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 
 import os
 import shutil
@@ -30,7 +30,29 @@ from backend.models import (
 
 # Création des tables
 Base.metadata.create_all(bind=engine)
+# ======================================================
+# MISE À JOUR DE LA TABLE ANNONCES
+# ======================================================
 
+from sqlalchemy import text
+
+with engine.connect() as connection:
+
+    colonnes = connection.execute(
+        text("PRAGMA table_info(annonces)")
+    ).fetchall()
+
+    noms_colonnes = [colonne[1] for colonne in colonnes]
+
+    if "type_bien" not in noms_colonnes:
+        connection.execute(
+            text(
+                "ALTER TABLE annonces "
+                "ADD COLUMN type_bien VARCHAR(100)"
+            )
+        )
+
+    connection.commit()
 # Initialisation de l'application
 app = FastAPI(
     title="AL SAMADIYA IMMO PRO",
@@ -391,32 +413,36 @@ def login(request: Request):
 @app.post("/login")
 def traiter_login(
     request: Request,
-    email: str = Form(...),
+    identifiant: str = Form(...),
     mot_de_passe: str = Form(...),
     db: Session = Depends(get_db)
 ):
 
-    # Recherche de l'utilisateur
+    # Recherche par e-mail OU numéro de téléphone
     utilisateur = (
         db.query(Utilisateur)
-        .filter(Utilisateur.email == email)
+        .filter(
+            or_(
+                Utilisateur.email == identifiant,
+                Utilisateur.telephone == identifiant
+            )
+        )
         .first()
     )
 
     # Utilisateur inexistant
     if not utilisateur:
-
         return templates.TemplateResponse(
             request=request,
             name="login.html",
             context={
                 "request": request,
-                "erreur": "Adresse e-mail ou mot de passe incorrect."
+                "erreur": "E-mail ou numéro de téléphone incorrect."
             },
             status_code=401
         )
 
-    # Vérification du format du mot de passe enregistré
+    # Vérification du mot de passe PBKDF2
     try:
 
         sel_hex, hash_hex = utilisateur.mot_de_passe.split("$", 1)
@@ -455,60 +481,19 @@ def traiter_login(
             name="login.html",
             context={
                 "request": request,
-                "erreur": "Adresse e-mail ou mot de passe incorrect."
+                "erreur": "E-mail ou numéro de téléphone incorrect."
             },
             status_code=401
         )
 
     # Connexion réussie
+    request.session["user_id"] = utilisateur.id
+    request.session["role"] = utilisateur.role
+
     return RedirectResponse(
         "/dashboard",
         status_code=303
     )
-
-    utilisateur = (
-        db.query(Utilisateur)
-        .filter(Utilisateur.email == email)
-        .first()
-    )
-
-    if not utilisateur:
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "request": request,
-                "erreur": "Adresse e-mail ou mot de passe incorrect."
-            }
-        )
-
-    mot_de_passe_hash = hashlib.sha256(
-    mot_de_passe.encode("utf-8")
-).hexdigest()
-
-    if utilisateur.mot_de_passe != mot_de_passe_hash:
-        return templates.TemplateResponse(
-        request=request,
-        name="login.html",
-        context={
-            "request": request,
-            "erreur": "Adresse e-mail ou mot de passe incorrect."
-        }
-    )
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "request": request,
-                "erreur": "Adresse e-mail ou mot de passe incorrect."
-            }
-        )
-
-        return RedirectResponse(
-        "/dashboard",
-        status_code=303
-    )
-
 # =====================================================
 # INSCRIPTION
 # =====================================================
