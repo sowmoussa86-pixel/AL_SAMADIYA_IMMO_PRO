@@ -1,23 +1,30 @@
 # ============================================================
 # AL SAMADIYA IMMO PRO
-# Application FastAPI
+# backend/main.py
 # ============================================================
 
 import os
 import hashlib
 import secrets
+import shutil
 
-from fastapi import FastAPI, Request, Form, Depends, UploadFile, File
+from fastapi import (
+    FastAPI,
+    Request,
+    Form,
+    Depends,
+    UploadFile,
+    File,
+)
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 
-# Base de données
 from backend.database import Base, engine, get_db
-
-# Modèles
 from backend.models import (
     Utilisateur,
     Annonce,
@@ -28,13 +35,46 @@ from backend.models import (
 
 
 # ============================================================
-# CRÉATION DE L'APPLICATION
+# DOSSIERS
+# ============================================================
+
+UPLOAD_DIR = os.path.join("uploads", "annonces")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+# ============================================================
+# APPLICATION FASTAPI
+# IMPORTANT : app doit être créé AVANT @app.get / @app.post
 # ============================================================
 
 app = FastAPI(
     title="AL SAMADIYA IMMO PRO",
     description="Plateforme immobilière AL SAMADIYA IMMO",
-    version="1.0.0"
+    version="1.0.0",
+)
+
+
+# ============================================================
+# SESSION
+# ============================================================
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv(
+        "SESSION_SECRET",
+        "al-samadiya-immo-secret-change-me",
+    ),
+)
+
+
+# ============================================================
+# FICHIERS STATIQUES / IMAGES
+# ============================================================
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads",
 )
 
 
@@ -56,39 +96,44 @@ Base.metadata.create_all(bind=engine)
 
 # ============================================================
 # MISE À JOUR DE LA TABLE ANNONCES
-# Ajout de type_bien si la colonne n'existe pas
+# Ajoute type_bien si l'ancienne base ne possède pas encore
+# cette colonne.
 # ============================================================
 
-try:
+if engine.dialect.name == "sqlite":
+    try:
+        with engine.connect() as connection:
 
-    with engine.connect() as connection:
+            colonnes = connection.execute(
+                text("PRAGMA table_info(annonces)")
+            ).fetchall()
 
-        colonnes = connection.execute(
-            text("PRAGMA table_info(annonces)")
-        ).fetchall()
+            noms_colonnes = [
+                colonne[1]
+                for colonne in colonnes
+            ]
 
-        noms_colonnes = [
-            colonne[1]
-            for colonne in colonnes
-        ]
+            if "type_bien" not in noms_colonnes:
 
-        if "type_bien" not in noms_colonnes:
-
-            connection.execute(
-                text(
-                    "ALTER TABLE annonces "
-                    "ADD COLUMN type_bien VARCHAR(100)"
+                connection.execute(
+                    text(
+                        "ALTER TABLE annonces "
+                        "ADD COLUMN type_bien VARCHAR(100)"
+                    )
                 )
-            )
 
-            connection.commit()
+                connection.commit()
 
-except Exception as e:
+                print(
+                    "✅ Colonne annonces.type_bien ajoutée."
+                )
 
-    print(
-        "⚠️ Mise à jour de la table annonces :",
-        e
-    )
+    except Exception as e:
+
+        print(
+            "⚠️ Migration type_bien :",
+            repr(e)
+        )
 
 
 # ============================================================
@@ -96,331 +141,147 @@ except Exception as e:
 # ============================================================
 
 @app.get("/")
-def accueil(request: Request):
-
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={
-            "request": request
-        }
-    )
-
-
-# ============================================================
-# PAGE CONNEXION
-# ============================================================
-
-@app.get("/login")
-def page_login(request: Request):
-
-    return templates.TemplateResponse(
-        request=request,
-        name="login.html",
-        context={
-            "request": request
-        }
-    )
-
-
-# ============================================================
-# TRAITEMENT CONNEXION
-# ============================================================
-
-@app.post("/login")
-def traiter_login(
+def accueil(
     request: Request,
-    email: str = Form(...),
-    mot_de_passe: str = Form(...),
-    db: Session = Depends(get_db)
-):
-
-    utilisateur = (
-        db.query(Utilisateur)
-        .filter(Utilisateur.email == email)
-        .first()
-    )
-
-    if not utilisateur:
-
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "request": request,
-                "erreur": "Adresse e-mail ou mot de passe incorrect."
-            },
-            status_code=401
-        )
-
-    try:
-
-        sel_hex, hash_hex = (
-            utilisateur.mot_de_passe.split("$", 1)
-        )
-
-        sel = bytes.fromhex(sel_hex)
-        hash_enregistre = bytes.fromhex(hash_hex)
-
-        hash_verification = hashlib.pbkdf2_hmac(
-            "sha256",
-            mot_de_passe.encode("utf-8"),
-            sel,
-            200_000
-        )
-
-        if not secrets.compare_digest(
-            hash_verification,
-            hash_enregistre
-        ):
-
-            return templates.TemplateResponse(
-                request=request,
-                name="login.html",
-                context={
-                    "request": request,
-                    "erreur": "Adresse e-mail ou mot de passe incorrect."
-                },
-                status_code=401
-            )
-
-    except (ValueError, TypeError, AttributeError):
-
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "request": request,
-                "erreur": "Impossible de vérifier les identifiants."
-            },
-            status_code=500
-        )
-
-    return RedirectResponse(
-        "/dashboard",
-        status_code=303
-    )
-
-
-# ============================================================
-# PAGE RECHERCHE DE BIENS
-# ============================================================
-
-@app.get("/recherche")
-def recherche_biens(
-    request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
     annonces = (
         db.query(Annonce)
+        .filter(Annonce.statut != "brouillon")
         .order_by(
-            Annonce.date_creation.desc()
+            Annonce.premium.desc(),
+            Annonce.date_creation.desc(),
         )
         .all()
     )
 
     return templates.TemplateResponse(
         request=request,
-        name="recherche.html",
+        name="index.html",
         context={
             "request": request,
-            "annonces": annonces
-        }
-    )
-
-    # ==================================================
-    # REQUÊTE DE BASE
-    # ==================================================
-
-    query = db.query(Annonce)
-
-
-    # ==================================================
-    # ANNONCES VALIDES
-    # ==================================================
-
-    query = query.filter(
-        Annonce.statut != "brouillon"
+            "annonces": annonces,
+        },
     )
 
 
-    # ==================================================
-    # TYPE DE BIEN
-    # ==================================================
+# ============================================================
+# RECHERCHE DE BIENS
+# ============================================================
+
+@app.get("/recherche")
+def recherche_biens(
+    request: Request,
+    type_bien: str = "",
+    region: str = "",
+    ville: str = "",
+    quartier: str = "",
+    prix_min: float = 0,
+    prix_max: float = 0,
+    db: Session = Depends(get_db),
+):
+
+    query = (
+        db.query(Annonce)
+        .filter(Annonce.statut != "brouillon")
+    )
 
     if type_bien:
-
         query = query.filter(
             Annonce.type_bien == type_bien
         )
 
-
-    # ==================================================
-    # RÉGION
-    # ==================================================
-
     if region:
-
         query = query.filter(
             Annonce.region.ilike(
                 f"%{region}%"
             )
         )
 
-
-    # ==================================================
-    # VILLE
-    # ==================================================
-
     if ville:
-
         query = query.filter(
             Annonce.ville.ilike(
                 f"%{ville}%"
             )
         )
 
-
-    # ==================================================
-    # QUARTIER
-    # ==================================================
-
     if quartier:
-
         query = query.filter(
             Annonce.quartier.ilike(
                 f"%{quartier}%"
             )
         )
 
-
-    # ==================================================
-    # PRIX MINIMUM
-    # ==================================================
-
-    if prix_min and prix_min > 0:
-
+    if prix_min > 0:
         query = query.filter(
             Annonce.prix >= prix_min
         )
 
-
-    # ==================================================
-    # PRIX MAXIMUM
-    # ==================================================
-
-    if prix_max and prix_max > 0:
-
+    if prix_max > 0:
         query = query.filter(
             Annonce.prix <= prix_max
         )
-
-
-    # ==================================================
-    # TRI
-    # ==================================================
 
     annonces = (
         query
         .order_by(
             Annonce.premium.desc(),
-            Annonce.date_creation.desc()
+            Annonce.date_creation.desc(),
         )
         .all()
     )
-
-
-    # ==================================================
-    # AFFICHAGE DES RÉSULTATS
-    # ==================================================
 
     return templates.TemplateResponse(
         request=request,
         name="resultats.html",
         context={
             "request": request,
-
             "annonces": annonces,
-
             "type_bien": type_bien,
             "region": region,
             "ville": ville,
             "quartier": quartier,
-
             "prix_min": prix_min,
             "prix_max": prix_max,
-
-            "nombre_resultats": len(annonces)
-        }
+            "nombre_resultats": len(annonces),
+        },
     )
 
 
-# ======================================================
-# RECHERCHE AVANCÉE PAR LOCALISATION
-# ======================================================
+# ============================================================
+# RECHERCHE AVANCÉE
+# ============================================================
 
 @app.get("/recherche-avancee")
 def recherche_avancee(
     request: Request,
-
     type_bien: str = "",
     localisation: str = "",
-
     prix_min: float = 0,
     prix_max: float = 0,
-
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
-    query = db.query(Annonce)
-
-
-    # ==================================================
-    # ANNONCES VALIDES
-    # ==================================================
-
-    query = query.filter(
-        Annonce.statut != "brouillon"
+    query = (
+        db.query(Annonce)
+        .filter(Annonce.statut != "brouillon")
     )
 
-
-    # ==================================================
-    # TYPE DE BIEN
-    # ==================================================
-
     if type_bien:
-
         query = query.filter(
             Annonce.type_bien == type_bien
         )
 
-
-    # ==================================================
-    # PRIX MINIMUM
-    # ==================================================
-
     if prix_min > 0:
-
         query = query.filter(
             Annonce.prix >= prix_min
         )
 
-
-    # ==================================================
-    # PRIX MAXIMUM
-    # ==================================================
-
     if prix_max > 0:
-
         query = query.filter(
             Annonce.prix <= prix_max
         )
-
-
-    # ==================================================
-    # RECHERCHE LOCALISATION
-    # ==================================================
 
     if localisation:
 
@@ -433,43 +294,29 @@ def recherche_avancee(
                 Annonce.localisation.ilike(
                     recherche_localisation
                 ),
-
                 Annonce.region.ilike(
                     recherche_localisation
                 ),
-
                 Annonce.ville.ilike(
                     recherche_localisation
                 ),
-
                 Annonce.quartier.ilike(
                     recherche_localisation
                 ),
-
                 Annonce.adresse.ilike(
                     recherche_localisation
-                )
+                ),
             )
         )
-
-
-    # ==================================================
-    # RÉSULTATS
-    # ==================================================
 
     annonces = (
         query
         .order_by(
             Annonce.premium.desc(),
-            Annonce.date_creation.desc()
+            Annonce.date_creation.desc(),
         )
         .all()
     )
-
-
-    # ==================================================
-    # AFFICHAGE
-    # ==================================================
 
     return templates.TemplateResponse(
         request=request,
@@ -477,21 +324,18 @@ def recherche_avancee(
         context={
             "request": request,
             "annonces": annonces,
-
             "type_bien": type_bien,
             "localisation": localisation,
-
             "prix_min": prix_min,
             "prix_max": prix_max,
-
-            "nombre_resultats": len(annonces)
-        }
+            "nombre_resultats": len(annonces),
+        },
     )
 
 
-# ======================================================
-# LOGIN
-# ======================================================
+# ============================================================
+# CONNEXION
+# ============================================================
 
 @app.get("/login")
 def login(request: Request):
@@ -500,73 +344,58 @@ def login(request: Request):
         request=request,
         name="login.html",
         context={
-            "request": request
-        }
+            "request": request,
+        },
     )
+
+
 @app.post("/login")
 def traiter_login(
     request: Request,
     identifiant: str = Form(...),
     mot_de_passe: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
-    # Recherche par e-mail OU numéro de téléphone
     utilisateur = (
         db.query(Utilisateur)
         .filter(
             or_(
                 Utilisateur.email == identifiant,
-                Utilisateur.telephone == identifiant
+                Utilisateur.telephone == identifiant,
             )
         )
         .first()
     )
 
-    # Utilisateur inexistant
     if not utilisateur:
+
         return templates.TemplateResponse(
             request=request,
             name="login.html",
             context={
                 "request": request,
-                "erreur": "E-mail ou numéro de téléphone incorrect."
+                "erreur": (
+                    "E-mail ou numéro de téléphone "
+                    "incorrect."
+                ),
             },
-            status_code=401
+            status_code=401,
         )
 
-    # Vérification du mot de passe PBKDF2
     try:
 
-        sel_hex, hash_hex = utilisateur.mot_de_passe.split("$", 1)
+        sel_hex, hash_hex = (
+            utilisateur.mot_de_passe.split("$", 1)
+        )
 
         sel = bytes.fromhex(sel_hex)
         hash_enregistre = bytes.fromhex(hash_hex)
 
-    except (ValueError, TypeError):
-
-        return templates.TemplateResponse(
-            request=request,
-            name="login.html",
-            context={
-                "request": request,
-                "erreur": "Impossible de vérifier les identifiants."
-            },
-            status_code=500
-        )
-
-    # Recalcul du hash avec le même sel
-    hash_verification = hashlib.pbkdf2_hmac(
-        "sha256",
-        mot_de_passe.encode("utf-8"),
-        sel,
-        200_000
-    )
-
-    # Comparaison sécurisée
-    if not secrets.compare_digest(
-        hash_verification,
-        hash_enregistre
+    except (
+        ValueError,
+        TypeError,
+        AttributeError,
     ):
 
         return templates.TemplateResponse(
@@ -574,32 +403,63 @@ def traiter_login(
             name="login.html",
             context={
                 "request": request,
-                "erreur": "E-mail ou numéro de téléphone incorrect."
+                "erreur": (
+                    "Impossible de vérifier "
+                    "les identifiants."
+                ),
             },
-            status_code=401
+            status_code=500,
         )
 
-    # Connexion réussie
+    hash_verification = hashlib.pbkdf2_hmac(
+        "sha256",
+        mot_de_passe.encode("utf-8"),
+        sel,
+        200_000,
+    )
+
+    if not secrets.compare_digest(
+        hash_verification,
+        hash_enregistre,
+    ):
+
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "request": request,
+                "erreur": (
+                    "E-mail ou numéro de téléphone "
+                    "incorrect."
+                ),
+            },
+            status_code=401,
+        )
+
     request.session["user_id"] = utilisateur.id
     request.session["role"] = utilisateur.role
 
     return RedirectResponse(
         "/dashboard",
-        status_code=303
+        status_code=303,
     )
-# =====================================================
+
+
+# ============================================================
 # INSCRIPTION
-# =====================================================
+# ============================================================
 
 @app.get("/inscription")
 def inscription(request: Request):
+
     return templates.TemplateResponse(
         request=request,
         name="inscription.html",
         context={
-            "request": request
-        }
+            "request": request,
+        },
     )
+
 
 @app.post("/inscription")
 def enregistrer_utilisateur(
@@ -611,10 +471,9 @@ def enregistrer_utilisateur(
     role: str = Form("client"),
     mot_de_passe: str = Form(...),
     confirmation: str = Form(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
-    # Vérification du mot de passe
     if mot_de_passe != confirmation:
 
         return templates.TemplateResponse(
@@ -622,25 +481,28 @@ def enregistrer_utilisateur(
             name="inscription.html",
             context={
                 "request": request,
-                "erreur": "Les deux mots de passe ne correspondent pas."
+                "erreur": (
+                    "Les deux mots de passe "
+                    "ne correspondent pas."
+                ),
             },
-            status_code=400
+            status_code=400,
         )
 
-    # Vérification du rôle
     roles_autorises = [
         "client",
         "proprietaire",
-        "agence"
+        "agence",
     ]
 
     if role not in roles_autorises:
         role = "client"
 
-    # Vérification si l'email existe déjà
     utilisateur_existant = (
         db.query(Utilisateur)
-        .filter(Utilisateur.email == email)
+        .filter(
+            Utilisateur.email == email
+        )
         .first()
     )
 
@@ -651,14 +513,13 @@ def enregistrer_utilisateur(
             name="inscription.html",
             context={
                 "request": request,
-                "erreur": "Cette adresse e-mail est déjà utilisée."
+                "erreur": (
+                    "Cette adresse e-mail "
+                    "est déjà utilisée."
+                ),
             },
-            status_code=400
+            status_code=400,
         )
-
-    # -------------------------------------------------
-    # HACHAGE SÉCURISÉ DU MOT DE PASSE
-    # -------------------------------------------------
 
     sel = secrets.token_bytes(16)
 
@@ -666,7 +527,7 @@ def enregistrer_utilisateur(
         "sha256",
         mot_de_passe.encode("utf-8"),
         sel,
-        200_000
+        200_000,
     )
 
     mot_de_passe_securise = (
@@ -675,10 +536,6 @@ def enregistrer_utilisateur(
         + hash_mot_de_passe.hex()
     )
 
-    # -------------------------------------------------
-    # CRÉATION DE L'UTILISATEUR
-    # -------------------------------------------------
-
     utilisateur = Utilisateur(
         nom=nom,
         prenom=prenom,
@@ -686,26 +543,22 @@ def enregistrer_utilisateur(
         telephone=telephone,
         mot_de_passe=mot_de_passe_securise,
         role=role,
-        actif=True
+        actif=True,
     )
 
     db.add(utilisateur)
     db.commit()
     db.refresh(utilisateur)
 
-    # -------------------------------------------------
-    # REDIRECTION APRÈS INSCRIPTION
-    # -------------------------------------------------
-
     return RedirectResponse(
         "/login",
-        status_code=303
+        status_code=303,
     )
 
 
-# =====================================================
+# ============================================================
 # DASHBOARD
-# =====================================================
+# ============================================================
 
 @app.get("/dashboard")
 def dashboard(request: Request):
@@ -714,9 +567,15 @@ def dashboard(request: Request):
         request=request,
         name="dashboard.html",
         context={
-            "request": request
-        }
+            "request": request,
+        },
     )
+
+
+# ============================================================
+# AJOUTER UNE ANNONCE - FORMULAIRE
+# ============================================================
+
 @app.get("/ajouter-annonce")
 def ajouter_annonce(request: Request):
 
@@ -724,91 +583,226 @@ def ajouter_annonce(request: Request):
         request=request,
         name="ajouter_annonce.html",
         context={
-            "request": request
-        }
+            "request": request,
+        },
     )
+
+
+# ============================================================
+# AJOUTER UNE ANNONCE - TRAITEMENT
+# ============================================================
+
 @app.post("/ajouter-annonce")
 async def enregistrer_annonce(
     titre: str = Form(""),
-    description: str = Form(...),
-    categorie: str = Form(...),
-    type_transaction: str = Form(...),
+    description: str = Form(""),
+    categorie: str = Form(""),
+    type_bien: str = Form(""),
     prix: float = Form(0),
-    superficie: float = Form(...),
-    region: str = Form(...),
-    ville: str = Form(...),
-    quartier: str = Form(...),
-    adresse: str = Form(...),
-    nombre_chambres: int = Form(...),
-    nombre_salles_bain: int = Form(...),
+    superficie: float = Form(0),
+    region: str = Form(""),
+    ville: str = Form(""),
+    quartier: str = Form(""),
+    localisation: str = Form(""),
+    adresse: str = Form(""),
+    nombre_chambres: int = Form(0),
+    nombre_salles_bain: int = Form(0),
     meuble: bool = Form(False),
-    telephone: str = Form(...),
-    whatsapp: str = Form(...),
-    email: str = Form(...),
+    telephone: str = Form(""),
+    whatsapp: str = Form(""),
+    email: str = Form(""),
     latitude: float = Form(0),
     longitude: float = Form(0),
-    image: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
 ):
 
-    # Création du dossier uploads si nécessaire
-    os.makedirs("uploads", exist_ok=True)
+    # Si le formulaire ne contient pas type_bien,
+    # on utilise la catégorie comme solution de secours.
+    type_bien_final = (
+        type_bien.strip()
+        or categorie.strip()
+        or "Autre"
+    )
 
-    # Sauvegarde de l'image
-    chemin_image = os.path.join("uploads", "annonces", image.filename)
+    # Sécurisation des valeurs numériques
+    prix = max(float(prix or 0), 0)
+    superficie = max(float(superficie or 0), 0)
 
-    with open(chemin_image, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    nombre_chambres = max(
+        int(nombre_chambres or 0),
+        0,
+    )
 
+    nombre_salles_bain = max(
+        int(nombre_salles_bain or 0),
+        0,
+    )
+
+    # --------------------------------------------------------
     # Création de l'annonce
+    # --------------------------------------------------------
+
     annonce = Annonce(
         titre=titre,
         description=description,
         categorie=categorie,
-        type_transaction=type_transaction,
+        type_bien=type_bien_final,
         prix=prix,
-        superficie=superficie,
+        surface=superficie,
         region=region,
         ville=ville,
         quartier=quartier,
+        localisation=(
+            localisation
+            or quartier
+            or ville
+        ),
         adresse=adresse,
-        nombre_chambres=nombre_chambres,
-        nombre_salles_bain=nombre_salles_bain,
+        chambres=nombre_chambres,
+        salles_bain=nombre_salles_bain,
         meuble=meuble,
         telephone=telephone,
         whatsapp=whatsapp,
         email=email,
         latitude=latitude,
         longitude=longitude,
-        image=image.filename
+        statut="en_attente",
     )
 
     db.add(annonce)
-    db.commit()
+    db.flush()
 
-    return RedirectResponse("/", status_code=303)
+    # --------------------------------------------------------
+    # Sauvegarde de l'image
+    # --------------------------------------------------------
+
+    if image and image.filename:
+
+        nom_original = os.path.basename(
+            image.filename
+        )
+
+        extension = os.path.splitext(
+            nom_original
+        )[1].lower()
+
+        extensions_autorisees = {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+        }
+
+        if extension in extensions_autorisees:
+
+            nom_fichier = (
+                secrets.token_hex(12)
+                + extension
+            )
+
+            chemin_complet = os.path.join(
+                UPLOAD_DIR,
+                nom_fichier,
+            )
+
+            with open(
+                chemin_complet,
+                "wb",
+            ) as buffer:
+
+                shutil.copyfileobj(
+                    image.file,
+                    buffer,
+                )
+
+            image_annonce = ImageAnnonce(
+                annonce_id=annonce.id,
+                nom_fichier=nom_fichier,
+                chemin=(
+                    f"/uploads/annonces/"
+                    f"{nom_fichier}"
+                ),
+            )
+
+            db.add(image_annonce)
+
+    db.commit()
+    db.refresh(annonce)
+
+    return RedirectResponse(
+        f"/annonce/{annonce.id}",
+        status_code=303,
+    )
+
+
+# ============================================================
+# DÉTAIL D'UNE ANNONCE
+# ============================================================
+
 @app.get("/annonce/{id}")
 def detail_annonce(
     id: int,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
-    annonce = db.query(Annonce).filter(
-        Annonce.id == id
-    ).first()
+    annonce = (
+        db.query(Annonce)
+        .filter(Annonce.id == id)
+        .first()
+    )
 
-    if annonce:
+    if not annonce:
 
-        annonce.vues += 1
+        return templates.TemplateResponse(
+            request=request,
+            name="detail_annonce.html",
+            context={
+                "request": request,
+                "annonce": None,
+                "erreur": (
+                    "Cette annonce "
+                    "n'existe pas."
+                ),
+            },
+            status_code=404,
+        )
 
-        db.commit()
+    annonce.vues = (
+        (annonce.vues or 0) + 1
+    )
+
+    db.commit()
+
+    images = (
+        db.query(ImageAnnonce)
+        .filter(
+            ImageAnnonce.annonce_id == annonce.id
+        )
+        .all()
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="detail_annonce.html",
         context={
             "request": request,
-            "annonce": annonce
-        }
+            "annonce": annonce,
+            "images": images,
+        },
     )
+
+
+# ============================================================
+# SANTÉ DE L'APPLICATION
+# Permet de tester rapidement Render.
+# ============================================================
+
+@app.get("/health")
+def health():
+
+    return {
+        "status": "ok",
+        "service": "AL SAMADIYA IMMO PRO",
+    }
