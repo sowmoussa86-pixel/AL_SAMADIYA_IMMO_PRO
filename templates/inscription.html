@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5 mb-5">
+
+    <div class="row justify-content-center">
+
+        <div class="col-md-7 col-lg-6">
+
+            <div class="card shadow-sm border-0">
+
+                <div class="card-body p-4">
+
+                    <h2 class="text-center mb-2">
+                        Créer votre compte
+                    </h2>
+
+                    <p class="text-center text-muted mb-4">
+                        Rejoignez AL SAMADIYA IMMO
+                    </p>
+
+                    <form action="/inscription" method="post">
+
+                        <!-- NOM -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Nom
+                            </label>
+
+                            <input
+                                type="text"
+                                name="nom"
+                                class="form-control"
+                                placeholder="Votre nom"
+                                required
+                            >
+                        </div>
+
+                        <!-- PRÉNOM -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Prénom
+                            </label>
+
+                            <input
+                                type="text"
+                                name="prenom"
+                                class="form-control"
+                                placeholder="Votre prénom"
+                            >
+                        </div>
+
+                        <!-- EMAIL -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Adresse e-mail
+                            </label>
+
+                            <input
+                                type="email"
+                                name="email"
+                                class="form-control"
+                                placeholder="exemple@email.com"
+                                required
+                            >
+                        </div>
+
+                        <!-- TÉLÉPHONE -->
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Téléphone
+                            </label>
+
+                            <input
+                                type="tel"
+                                name="telephone"
+                                class="form-control"
+                                placeholder="+221 XX XXX XX XX"
+                            >
+                        </div>
+
+                        <!-- TYPE DE COMPTE -->
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Type de compte
+                            </label>
+
+                            <select
+                                name="role"
+                                class="form-select"
+                            >
+
+                                <option value="client">
+                                    Client
+                                </option>
+
+                                <option value="proprietaire">
+                                    Propriétaire
+                                </option>
+
+                                <option value="agence">
+                                    Agence immobilière
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                        <!-- MOT DE PASSE -->
+                        <div class="mb-3">
+
+                            <label class="form-label">
+                                Mot de passe
+                            </label>
+
+                            <input
+                                type="password"
+                                name="mot_de_passe"
+                                class="form-control"
+                                placeholder="Votre mot de passe"
+                                required
+                            >
+
+                        </div>
+
+                        <!-- CONFIRMATION -->
+                        <div class="mb-4">
+
+                            <label class="form-label">
+                                Confirmer le mot de passe
+                            </label>
+
+                            <input
+                                type="password"
+                                name="confirmation"
+                                class="form-control"
+                                placeholder="Confirmez votre mot de passe"
+                                required
+                            >
+
+                        </div>
+
+                        <!-- BOUTON -->
+                        <button
+                            type="submit"
+                            class="btn btn-warning w-100 py-2"
+                        >
+                            Créer mon compte
+                        </button>
+
+                    </form>
+
+                    <div class="text-center mt-4">
+
+                        <span class="text-muted">
+                            Vous avez déjà un compte ?
+                        </span>
+
+                        <a
+                            href="/login"
+                            class="text-decoration-none"
+                        >
+                            Se connecter
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

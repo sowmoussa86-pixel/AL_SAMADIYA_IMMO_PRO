@@ -2,33 +2,352 @@
 
 {% block content %}
 
-<div class="container">
+<div class="container py-5">
 
-<h1>Résultats de la recherche</h1>
+    <!-- =================================================
+         TITRE
+    ================================================== -->
 
-{% if annonces %}
+    <div class="text-center mb-5">
 
-{% for annonce in annonces %}
+        <h1 class="fw-bold">
+            🔎 Résultats de votre recherche
+        </h1>
 
-<div>
+        {% if nombre_resultats is defined %}
 
-<h3>{{ annonce.titre }}</h3>
+        <p class="text-muted">
+            {{ nombre_resultats }} bien(s) trouvé(s)
+        </p>
 
-<p>{{ annonce.region }}</p>
+        {% endif %}
 
-<p>{{ annonce.categorie }}</p>
+    </div>
 
-<p>{{ annonce.prix }} FCFA</p>
 
-</div>
+    <!-- =================================================
+         MESSAGE D'ERREUR
+    ================================================== -->
 
-{% endfor %}
+    {% if erreur %}
 
-{% else %}
+    <div class="alert alert-danger text-center">
 
-<h3>Aucune annonce trouvée.</h3>
+        {{ erreur }}
 
-{% endif %}
+    </div>
+
+    {% endif %}
+
+
+    <!-- =================================================
+         RESULTATS
+    ================================================== -->
+
+    {% if annonces %}
+
+    <div class="row g-4">
+
+        {% for annonce in annonces %}
+
+        <div class="col-md-6 col-lg-4">
+
+            <div class="card h-100 shadow border-0 rounded-4 overflow-hidden">
+
+                <!-- =====================================
+                     PHOTO
+                ====================================== -->
+
+                {% if annonce.images and annonce.images|length > 0 %}
+
+                    <img
+                        src="/uploads/{{ annonce.images[0].nom_fichier }}"
+                        class="card-img-top"
+                        style="height:230px; object-fit:cover;"
+                        alt="{{ annonce.titre }}"
+                    >
+
+                {% else %}
+
+                    <img
+                        src="/static/images/banner.png"
+                        class="card-img-top"
+                        style="height:230px; object-fit:cover;"
+                        alt="AL SAMADIYA IMMO"
+                    >
+
+                {% endif %}
+
+
+                <div class="card-body">
+
+                    <!-- =================================
+                         PREMIUM
+                    ================================== -->
+
+                    {% if annonce.premium %}
+
+                    <span class="badge bg-warning text-dark mb-2">
+
+                        ⭐ Annonce Premium
+
+                    </span>
+
+                    {% endif %}
+
+
+                    <!-- =================================
+                         TITRE
+                    ================================== -->
+
+                    <h4 class="card-title">
+
+                        {{ annonce.titre }}
+
+                    </h4>
+
+
+                    <!-- =================================
+                         TYPE
+                    ================================== -->
+
+                    <p class="mb-2">
+
+                        🏠
+                        <strong>
+                            {{ annonce.categorie }}
+                        </strong>
+
+                    </p>
+
+
+                    <!-- =================================
+                         PRIX
+                    ================================== -->
+
+                    <h4 class="text-success fw-bold">
+
+                        {{ "{:,.0f}".format(annonce.prix or 0) }}
+                        FCFA
+
+                    </h4>
+
+
+                    <!-- =================================
+                         LOCALISATION GENERALE
+                    ================================== -->
+
+                    <p class="text-muted mb-1">
+
+                        📍
+
+                        {% if annonce.region %}
+                            {{ annonce.region }}
+                        {% endif %}
+
+                        {% if annonce.ville %}
+                            • {{ annonce.ville }}
+                        {% endif %}
+
+                    </p>
+
+
+                    {% if annonce.quartier %}
+
+                    <p class="text-muted">
+
+                        🏘️ {{ annonce.quartier }}
+
+                    </p>
+
+                    {% endif %}
+
+
+                    <!-- =================================
+                         CARACTERISTIQUES
+                    ================================== -->
+
+                    <div class="small text-muted mb-3">
+
+                        {% if annonce.surface %}
+
+                        📐 {{ annonce.surface }} m²
+
+                        {% endif %}
+
+                        {% if annonce.chambres %}
+
+                        • 🛏️ {{ annonce.chambres }} chambre(s)
+
+                        {% endif %}
+
+                        {% if annonce.salles_bain %}
+
+                        • 🚿 {{ annonce.salles_bain }} salle(s) de bain
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- =================================
+                         VUES
+                    ================================== -->
+
+                    <div class="small text-muted mb-3">
+
+                        👁️ {{ annonce.vues or 0 }} vue(s)
+
+                    </div>
+
+
+                    <!-- =================================
+                         LOCALISATION PROTEGEE
+                    ================================== -->
+
+                    <div class="alert alert-warning">
+
+                        🔐
+                        <strong>
+                            Localisation exacte protégée
+                        </strong>
+
+                        <br>
+
+                        <small>
+
+                            Accédez à la localisation précise
+                            du bien après paiement des frais
+                            de service.
+
+                        </small>
+
+                    </div>
+
+
+                    <!-- =================================
+                         BOUTON ACCES
+                    ================================== -->
+
+                    <a
+                        href="/localisation/{{ annonce.id }}"
+                        class="btn btn-primary w-100 mb-2"
+                    >
+
+                        📍 Accéder au bien — 1 000 FCFA
+
+                    </a>
+
+
+                    <!-- =================================
+                         DETAILS
+                    ================================== -->
+
+                    <a
+                        href="/annonce/{{ annonce.id }}"
+                        class="btn btn-outline-secondary w-100"
+                    >
+
+                        👁️ Voir les détails
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <!-- =================================================
+         AUCUN RESULTAT
+    ================================================== -->
+
+    <div class="text-center py-5">
+
+        <div style="font-size:60px;">
+            🏠
+        </div>
+
+        <h3>
+            Aucun bien trouvé
+        </h3>
+
+        <p class="text-muted">
+
+            Essayez d'élargir votre fourchette de prix
+            ou de modifier la commune / le quartier.
+
+        </p>
+
+        <a
+            href="/"
+            class="btn btn-primary"
+        >
+
+            🔎 Nouvelle recherche
+
+        </a>
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- =================================================
+         CONTACT AL SAMADIYA
+    ================================================== -->
+
+    <div class="card shadow-sm border-0 rounded-4 mt-5">
+
+        <div class="card-body text-center">
+
+            <h4>
+                🤝 Besoin d'accompagnement ?
+            </h4>
+
+            <p class="text-muted">
+
+                AL SAMADIYA IMMO vous accompagne
+                dans votre recherche immobilière.
+
+            </p>
+
+            <p class="mb-1">
+
+                ☎️
+                <strong>
+                    +221 77 930 69 10
+                </strong>
+
+            </p>
+
+            <p class="mb-1">
+
+                💬 WhatsApp :
+                <strong>
+                    +221 77 930 69 10
+                </strong>
+
+            </p>
+
+            <p>
+
+                📧
+                <strong>
+                    sowmoussa86@gmail.com
+                </strong>
+
+            </p>
+
+        </div>
+
+    </div>
 
 </div>
 

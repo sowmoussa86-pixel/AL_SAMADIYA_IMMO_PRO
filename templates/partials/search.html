@@ -1,48 +1,272 @@
-<section class="search-section">
+<!-- =====================================================
+     RECHERCHE AL SAMADIYA IMMO
+===================================================== -->
 
-    <div class="container">
+<div class="container">
 
-        <h2>🔍 Rechercher un bien</h2>
+    <div class="card shadow border-0 rounded-4 p-4">
 
-        <form action="/recherche" method="GET" class="search-form">
+        <h3 class="text-center mb-4">
+            🔎 Trouver un bien immobilier
+        </h3>
 
-            <select name="region">
-                <option value="">Région</option>
-                <option>Dakar</option>
-                <option>Thiès</option>
-                <option>Diourbel</option>
-                <option>Saint-Louis</option>
-                <option>Kaolack</option>
-                <option>Ziguinchor</option>
-                <option>Touba</option>
-            </select>
+        <form
+            method="GET"
+            action="/recherche"
+        >
 
-            <select name="categorie">
-                <option value="">Type de bien</option>
-                <option>Terrain</option>
-                <option>Maison</option>
-                <option>Appartement</option>
-                <option>Villa</option>
-                <option>Champ agricole</option>
-                <option>Local commercial</option>
-            </select>
+            <div class="row g-3">
 
-            <input
-                type="number"
-                name="prix_min"
-                placeholder="Prix min">
+                <!-- =====================================
+                     TYPE DE BIEN - OBLIGATOIRE
+                ====================================== -->
 
-            <input
-                type="number"
-                name="prix_max"
-                placeholder="Prix max">
+                <div class="col-md-4">
 
-            <button type="submit">
-                🔎 Rechercher
-            </button>
+                    <label
+                        for="categorie"
+                        class="form-label fw-bold"
+                    >
+                        🏠 Type de bien *
+                    </label>
+
+                    <select
+                        id="categorie"
+                        name="categorie"
+                        class="form-select"
+                        required
+                    >
+
+                        <option value="">
+                            -- Choisir --
+                        </option>
+
+                        <option value="Maison">
+                            Maison
+                        </option>
+
+                        <option value="Villa">
+                            Villa
+                        </option>
+
+                        <option value="Appartement">
+                            Appartement
+                        </option>
+
+                        <option value="Terrain">
+                            Terrain
+                        </option>
+
+                        <option value="Immeuble">
+                            Immeuble
+                        </option>
+
+                        <option value="Local commercial">
+                            Local commercial
+                        </option>
+
+                        <option value="Champ agricole">
+                            Champ agricole
+                        </option>
+
+                        <option value="Bureau">
+                            Bureau
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =====================================
+                     PRIX MINIMUM - OBLIGATOIRE
+                ====================================== -->
+
+                <div class="col-md-4">
+
+                    <label
+                        for="prix_min"
+                        class="form-label fw-bold"
+                    >
+                        💰 Prix minimum *
+                    </label>
+
+                    <input
+                        type="number"
+                        id="prix_min"
+                        name="prix_min"
+                        class="form-control"
+                        placeholder="Ex : 10 000 000"
+                        min="0"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- =====================================
+                     PRIX MAXIMUM - OBLIGATOIRE
+                ====================================== -->
+
+                <div class="col-md-4">
+
+                    <label
+                        for="prix_max"
+                        class="form-label fw-bold"
+                    >
+                        💰 Prix maximum *
+                    </label>
+
+                    <input
+                        type="number"
+                        id="prix_max"
+                        name="prix_max"
+                        class="form-control"
+                        placeholder="Ex : 100 000 000"
+                        min="0"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- =====================================
+                     REGION - FACULTATIVE
+                ====================================== -->
+
+                <div class="col-md-4">
+
+                    <label
+                        for="region"
+                        class="form-label"
+                    >
+                        📍 Région
+                    </label>
+
+                    <select
+                        id="region"
+                        name="region"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Toutes les régions
+                        </option>
+
+                        <option value="Dakar">
+                            Dakar
+                        </option>
+
+                        <option value="Thiès">
+                            Thiès
+                        </option>
+
+                        <option value="Diourbel">
+                            Diourbel
+                        </option>
+
+                        <option value="Fatick">
+                            Fatick
+                        </option>
+
+                        <option value="Kaolack">
+                            Kaolack
+                        </option>
+
+                        <option value="Kaffrine">
+                            Kaffrine
+                        </option>
+
+                        <option value="Kédougou">
+                            Kédougou
+                        </option>
+
+                        <option value="Kolda">
+                            Kolda
+                        </option>
+
+                        <option value="Louga">
+                            Louga
+                        </option>
+
+                        <option value="Matam">
+                            Matam
+                        </option>
+
+                        <option value="Saint-Louis">
+                            Saint-Louis
+                        </option>
+
+                        <option value="Sédhiou">
+                            Sédhiou
+                        </option>
+
+                        <option value="Tambacounda">
+                            Tambacounda
+                        </option>
+
+                        <option value="Ziguinchor">
+                            Ziguinchor
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- =====================================
+                     COMMUNE / QUARTIER - FACULTATIF
+                ====================================== -->
+
+                <div class="col-md-8">
+
+                    <label
+                        for="localisation"
+                        class="form-label"
+                    >
+                        🏘️ Commune, quartier ou zone
+                    </label>
+
+                    <input
+                        type="text"
+                        id="localisation"
+                        name="localisation"
+                        class="form-control"
+                        placeholder="Ex : Ouakam, Almadies, Pikine, Foire..."
+                    >
+
+                </div>
+
+
+                <!-- =====================================
+                     BOUTON
+                ====================================== -->
+
+                <div class="col-12">
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary btn-lg w-100"
+                    >
+
+                        🔎 Rechercher un bien
+
+                    </button>
+
+                </div>
+
+            </div>
 
         </form>
 
+        <div class="text-center mt-3">
+
+            <small class="text-muted">
+                * Type de bien et fourchette de prix obligatoires
+            </small>
+
+        </div>
+
     </div>
 
-</section>
+</div>

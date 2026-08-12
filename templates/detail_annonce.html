@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+
+    <div class="row">
+
+        <div class="col-md-6">
+
+            {% if annonce.image %}
+                <img src="/uploads/{{ annonce.image }}"
+                     class="img-fluid rounded shadow">
+            {% endif %}
+
+        </div>
+
+        <div class="col-md-6">
+
+            {% if annonce.premium %}
+            <span class="badge bg-warning text-dark">
+                ⭐ PREMIUM
+            </span>
+            {% endif %}
+
+            <h2>{{ annonce.titre }}</h2>
+
+            <h3 class="text-primary">
+                {{ "{:,.0f}".format(annonce.prix) }} FCFA
+            </h3>
+
+            <p><strong>Catégorie :</strong> {{ annonce.categorie }}</p>
+
+            <p><strong>Transaction :</strong> {{ annonce.type_transaction }}</p>
+
+            <p><strong>Superficie :</strong> {{ annonce.superficie }} m²</p>
+
+            <p><strong>📍 Adresse :</strong>
+                {{ annonce.quartier }},
+                {{ annonce.ville }},
+                {{ annonce.region }}
+            </p>
+
+            <p>{{ annonce.description }}</p>
+
+            <p>👁️ {{ annonce.vues }} vues</p>
+
+            <hr>
+
+            <a href="tel:{{ annonce.telephone }}"
+               class="btn btn-success">
+                📞 Appeler
+            </a>
+
+            <a href="https://wa.me/{{ annonce.whatsapp }}"
+               target="_blank"
+               class="btn btn-success">
+                💬 WhatsApp
+            </a>
+
+            <a href="https://www.google.com/maps?q={{ annonce.latitude }},{{ annonce.longitude }}"
+               target="_blank"
+               class="btn btn-primary">
+                📍 Google Maps
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
