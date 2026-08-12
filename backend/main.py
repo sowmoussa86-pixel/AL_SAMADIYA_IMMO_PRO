@@ -34,9 +34,7 @@ Base.metadata.create_all(bind=engine)
 # MISE À JOUR DE LA TABLE ANNONCES
 # ======================================================
 
-from sqlalchemy import text
-
-with engine.connect() as connection:
+with engine.begin() as connection:
 
     colonnes = connection.execute(
         text("PRAGMA table_info(annonces)")
