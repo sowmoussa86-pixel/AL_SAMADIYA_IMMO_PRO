@@ -29,25 +29,42 @@ from backend.models import (
 )
 
 # ======================================================
+# CRÉATION DES TABLES
+# ======================================================
+
+Base.metadata.create_all(bind=engine)
+
+
+# ======================================================
 # MISE À JOUR DE LA TABLE ANNONCES
 # ======================================================
 
 from sqlalchemy import text
 
 with engine.connect() as connection:
+
     colonnes = connection.execute(
         text("PRAGMA table_info(annonces)")
     ).fetchall()
+
     noms_colonnes = [colonne[1] for colonne in colonnes]
 
     if "type_bien" not in noms_colonnes:
+
         connection.execute(
             text(
                 "ALTER TABLE annonces "
                 "ADD COLUMN type_bien VARCHAR(100)"
             )
         )
+
         connection.commit()
+
+
+# ======================================================
+# PAGE D'ACCUEIL
+# ======================================================
+
 @app.get("/")
 def accueil(
     request: Request,
@@ -56,6 +73,7 @@ def accueil(
 
     annonces = (
         db.query(Annonce)
+        .filter(Annonce.statut != "brouillon")
         .order_by(
             Annonce.premium.desc(),
             Annonce.date_creation.desc()
@@ -74,70 +92,117 @@ def accueil(
 
 
 # ======================================================
-# RECHERCHE DES BIENS
+# RECHERCHE DE BIENS
 # ======================================================
 
 @app.get("/recherche")
-def recherche(
+def recherche_biens(
     request: Request,
     type_bien: str = "",
+    region: str = "",
+    ville: str = "",
     prix_min: float = 0,
     prix_max: float = 0,
-    region: str = "",
-    zone: str = "",
     db: Session = Depends(get_db)
 ):
 
-    query = db.query(Annonce)
+    requete = db.query(Annonce)
 
     # --------------------------------------------------
     # TYPE DE BIEN
     # --------------------------------------------------
 
     if type_bien:
-        query = query.filter(
+
+        requete = requete.filter(
             Annonce.type_bien == type_bien
         )
 
-    # --------------------------------------------------
-    # PRIX MINIMUM
-    # --------------------------------------------------
-
-    if prix_min > 0:
-        query = query.filter(
-            Annonce.prix >= prix_min
-        )
-
-    # --------------------------------------------------
-    # PRIX MAXIMUM
-    # --------------------------------------------------
-
-    if prix_max > 0:
-        query = query.filter(
-            Annonce.prix <= prix_max
-        )
 
     # --------------------------------------------------
     # REGION
     # --------------------------------------------------
 
     if region:
-        query = query.filter(
+
+        requete = requete.filter(
             Annonce.region == region
         )
 
+
     # --------------------------------------------------
-    # COMMUNE / VILLE / QUARTIER
+    # VILLE
     # --------------------------------------------------
 
-    if zone:
-        query = query.filter(
-            or_(
-                Annonce.ville.ilike(f"%{zone}%"),
-                Annonce.quartier.ilike(f"%{zone}%"),
-                Annonce.localisation.ilike(f"%{zone}%")
-            )
+    if ville:
+
+        requete = requete.filter(
+            Annonce.ville == ville
         )
+
+
+    # --------------------------------------------------
+    # PRIX MINIMUM
+    # --------------------------------------------------
+
+    if prix_min and prix_min > 0:
+
+        requete = requete.filter(
+            Annonce.prix >= prix_min
+        )
+
+
+    # --------------------------------------------------
+    # PRIX MAXIMUM
+    # --------------------------------------------------
+
+    if prix_max and prix_max > 0:
+
+        requete = requete.filter(
+            Annonce.prix <= prix_max
+        )
+
+
+    # --------------------------------------------------
+    # UNIQUEMENT LES ANNONCES VALIDES
+    # --------------------------------------------------
+
+    requete = requete.filter(
+        Annonce.statut != "brouillon"
+    )
+
+
+    # --------------------------------------------------
+    # TRI
+    # --------------------------------------------------
+
+    annonces = (
+        requete
+        .order_by(
+            Annonce.premium.desc(),
+            Annonce.date_creation.desc()
+        )
+        .all()
+    )
+
+
+    # --------------------------------------------------
+    # AFFICHAGE
+    # --------------------------------------------------
+
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "request": request,
+            "annonces": annonces,
+            "type_bien": type_bien,
+            "region": region,
+            "ville": ville,
+            "prix_min": prix_min,
+            "prix_max": prix_max
+        }
+    )
 
     # --------------------------------------------------
     # EXECUTION
