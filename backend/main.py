@@ -513,35 +513,15 @@ def traiter_login(
 # INSCRIPTION
 # =====================================================
 
-@app.get("/inscription", response_class=HTMLResponse)
+@app.get("/inscription")
 def inscription(request: Request):
-    return """
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>AL SAMADIYA IMMO</title>
-    </head>
-
-    <body style="font-family: Arial; text-align:center; padding:50px;">
-
-        <h1 style="color:#1455a0;">
-            AL SAMADIYA IMMO
-        </h1>
-
-        <h2 style="color:#f5a900;">
-            TEST INSCRIPTION OK
-        </h2>
-
-        <p>
-            La page d'inscription fonctionne correctement.
-        </p>
-
-    </body>
-    </html>
-    """
-
+    return templates.TemplateResponse(
+        request=request,
+        name="inscription.html",
+        context={
+            "request": request
+        }
+    )
 
 @app.post("/inscription")
 def enregistrer_utilisateur(

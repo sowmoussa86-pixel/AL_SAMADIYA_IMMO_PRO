@@ -8,7 +8,7 @@
 
         <div class="col-md-7 col-lg-6">
 
-            <div class="card shadow-sm border-0">
+            <div class="card shadow-sm border-0 rounded-4">
 
                 <div class="card-body p-4">
 
@@ -22,10 +22,10 @@
 
                     <form action="/inscription" method="post">
 
-                        <!-- NOM -->
+                        <!-- NOM OBLIGATOIRE -->
                         <div class="mb-3">
                             <label class="form-label">
-                                Nom
+                                Nom <span class="text-danger">*</span>
                             </label>
 
                             <input
@@ -37,7 +37,7 @@
                             >
                         </div>
 
-                        <!-- PRÉNOM -->
+                        <!-- PRÉNOM FACULTATIF -->
                         <div class="mb-3">
                             <label class="form-label">
                                 Prénom
@@ -51,7 +51,7 @@
                             >
                         </div>
 
-                        <!-- EMAIL -->
+                        <!-- EMAIL FACULTATIF -->
                         <div class="mb-3">
                             <label class="form-label">
                                 Adresse e-mail
@@ -62,14 +62,13 @@
                                 name="email"
                                 class="form-control"
                                 placeholder="exemple@email.com"
-                                required
                             >
                         </div>
 
-                        <!-- TÉLÉPHONE -->
+                        <!-- TELEPHONE OBLIGATOIRE -->
                         <div class="mb-3">
                             <label class="form-label">
-                                Téléphone
+                                Téléphone <span class="text-danger">*</span>
                             </label>
 
                             <input
@@ -77,20 +76,25 @@
                                 name="telephone"
                                 class="form-control"
                                 placeholder="+221 XX XXX XX XX"
+                                required
                             >
                         </div>
 
                         <!-- TYPE DE COMPTE -->
                         <div class="mb-3">
-
                             <label class="form-label">
-                                Type de compte
+                                Type de compte <span class="text-danger">*</span>
                             </label>
 
                             <select
                                 name="role"
                                 class="form-select"
+                                required
                             >
+
+                                <option value="">
+                                    Choisir un type de compte
+                                </option>
 
                                 <option value="client">
                                     Client
@@ -105,14 +109,13 @@
                                 </option>
 
                             </select>
-
                         </div>
 
-                        <!-- MOT DE PASSE -->
+                        <!-- MOT DE PASSE OBLIGATOIRE -->
                         <div class="mb-3">
 
                             <label class="form-label">
-                                Mot de passe
+                                Mot de passe <span class="text-danger">*</span>
                             </label>
 
                             <input
@@ -121,15 +124,17 @@
                                 class="form-control"
                                 placeholder="Votre mot de passe"
                                 required
+                                minlength="6"
                             >
 
                         </div>
 
-                        <!-- CONFIRMATION -->
+                        <!-- CONFIRMATION OBLIGATOIRE -->
                         <div class="mb-4">
 
                             <label class="form-label">
                                 Confirmer le mot de passe
+                                <span class="text-danger">*</span>
                             </label>
 
                             <input
@@ -138,6 +143,7 @@
                                 class="form-control"
                                 placeholder="Confirmez votre mot de passe"
                                 required
+                                minlength="6"
                             >
 
                         </div>
@@ -145,7 +151,7 @@
                         <!-- BOUTON -->
                         <button
                             type="submit"
-                            class="btn btn-warning w-100 py-2"
+                            class="btn btn-warning w-100 py-2 fw-bold"
                         >
                             Créer mon compte
                         </button>
@@ -160,12 +166,18 @@
 
                         <a
                             href="/login"
-                            class="text-decoration-none"
+                            class="text-decoration-none fw-bold"
                         >
                             Se connecter
                         </a>
 
                     </div>
+
+                    <p class="text-muted text-center mt-3 mb-0">
+                        <small>
+                            * Champs obligatoires
+                        </small>
+                    </p>
 
                 </div>
 
