@@ -28,18 +28,16 @@ from backend.models import (
     Paiement
 )
 
-# Création des tables
-Base.metadata.create_all(bind=engine)
 # ======================================================
 # MISE À JOUR DE LA TABLE ANNONCES
 # ======================================================
 
-with engine.begin() as connection:
+from sqlalchemy import text
 
+with engine.connect() as connection:
     colonnes = connection.execute(
         text("PRAGMA table_info(annonces)")
     ).fetchall()
-
     noms_colonnes = [colonne[1] for colonne in colonnes]
 
     if "type_bien" not in noms_colonnes:
@@ -49,25 +47,7 @@ with engine.begin() as connection:
                 "ADD COLUMN type_bien VARCHAR(100)"
             )
         )
-
-    connection.commit()
-# Initialisation de l'application
-app = FastAPI(
-    title="AL SAMADIYA IMMO PRO",
-    version="1.0.0"
-)
-
-# Fichiers statiques
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-# Templates
-templates = Jinja2Templates(directory="templates")
-
-
-# =====================================================
-# ACCUEIL
-# =====================================================
-
+        connection.commit()
 @app.get("/")
 def accueil(
     request: Request,
