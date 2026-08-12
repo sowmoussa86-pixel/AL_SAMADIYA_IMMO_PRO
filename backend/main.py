@@ -1,81 +1,220 @@
-from fastapi import (
-    FastAPI,
-    Request,
-    Depends,
-    Form,
-    File,
-    UploadFile
-)
-
-from fastapi.responses import RedirectResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
+# ============================================================
+# AL SAMADIYA IMMO PRO
+# Application FastAPI
+# ============================================================
 
 import os
-import shutil
 import hashlib
 import secrets
 
+from fastapi import FastAPI, Request, Form, Depends, UploadFile, File
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+# Base de données
 from backend.database import Base, engine, get_db
+
+# Modèles
 from backend.models import (
     Utilisateur,
     Annonce,
     Favori,
     ImageAnnonce,
-    Paiement
+    Paiement,
 )
 
-# ======================================================
+
+# ============================================================
+# CRÉATION DE L'APPLICATION
+# ============================================================
+
+app = FastAPI(
+    title="AL SAMADIYA IMMO PRO",
+    description="Plateforme immobilière AL SAMADIYA IMMO",
+    version="1.0.0"
+)
+
+
+# ============================================================
+# TEMPLATES
+# ============================================================
+
+templates = Jinja2Templates(
+    directory="templates"
+)
+
+
+# ============================================================
 # CRÉATION DES TABLES
-# ======================================================
+# ============================================================
 
 Base.metadata.create_all(bind=engine)
 
 
-# ======================================================
+# ============================================================
 # MISE À JOUR DE LA TABLE ANNONCES
-# ======================================================
+# Ajout de type_bien si la colonne n'existe pas
+# ============================================================
 
-from sqlalchemy import text
+try:
 
-with engine.connect() as connection:
+    with engine.connect() as connection:
 
-    colonnes = connection.execute(
-        text("PRAGMA table_info(annonces)")
-    ).fetchall()
+        colonnes = connection.execute(
+            text("PRAGMA table_info(annonces)")
+        ).fetchall()
 
-    noms_colonnes = [colonne[1] for colonne in colonnes]
+        noms_colonnes = [
+            colonne[1]
+            for colonne in colonnes
+        ]
 
-    if "type_bien" not in noms_colonnes:
+        if "type_bien" not in noms_colonnes:
 
-        connection.execute(
-            text(
-                "ALTER TABLE annonces "
-                "ADD COLUMN type_bien VARCHAR(100)"
+            connection.execute(
+                text(
+                    "ALTER TABLE annonces "
+                    "ADD COLUMN type_bien VARCHAR(100)"
+                )
             )
-        )
 
-        connection.commit()
+            connection.commit()
+
+except Exception as e:
+
+    print(
+        "⚠️ Mise à jour de la table annonces :",
+        e
+    )
 
 
-# ======================================================
+# ============================================================
 # PAGE D'ACCUEIL
-# ======================================================
+# ============================================================
 
 @app.get("/")
-def accueil(
+def accueil(request: Request):
+
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "request": request
+        }
+    )
+
+
+# ============================================================
+# PAGE CONNEXION
+# ============================================================
+
+@app.get("/login")
+def page_login(request: Request):
+
+    return templates.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={
+            "request": request
+        }
+    )
+
+
+# ============================================================
+# TRAITEMENT CONNEXION
+# ============================================================
+
+@app.post("/login")
+def traiter_login(
+    request: Request,
+    email: str = Form(...),
+    mot_de_passe: str = Form(...),
+    db: Session = Depends(get_db)
+):
+
+    utilisateur = (
+        db.query(Utilisateur)
+        .filter(Utilisateur.email == email)
+        .first()
+    )
+
+    if not utilisateur:
+
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "request": request,
+                "erreur": "Adresse e-mail ou mot de passe incorrect."
+            },
+            status_code=401
+        )
+
+    try:
+
+        sel_hex, hash_hex = (
+            utilisateur.mot_de_passe.split("$", 1)
+        )
+
+        sel = bytes.fromhex(sel_hex)
+        hash_enregistre = bytes.fromhex(hash_hex)
+
+        hash_verification = hashlib.pbkdf2_hmac(
+            "sha256",
+            mot_de_passe.encode("utf-8"),
+            sel,
+            200_000
+        )
+
+        if not secrets.compare_digest(
+            hash_verification,
+            hash_enregistre
+        ):
+
+            return templates.TemplateResponse(
+                request=request,
+                name="login.html",
+                context={
+                    "request": request,
+                    "erreur": "Adresse e-mail ou mot de passe incorrect."
+                },
+                status_code=401
+            )
+
+    except (ValueError, TypeError, AttributeError):
+
+        return templates.TemplateResponse(
+            request=request,
+            name="login.html",
+            context={
+                "request": request,
+                "erreur": "Impossible de vérifier les identifiants."
+            },
+            status_code=500
+        )
+
+    return RedirectResponse(
+        "/dashboard",
+        status_code=303
+    )
+
+
+# ============================================================
+# PAGE RECHERCHE DE BIENS
+# ============================================================
+
+@app.get("/recherche")
+def recherche_biens(
     request: Request,
     db: Session = Depends(get_db)
 ):
 
     annonces = (
         db.query(Annonce)
-        .filter(Annonce.statut != "brouillon")
         .order_by(
-            Annonce.premium.desc(),
             Annonce.date_creation.desc()
         )
         .all()
@@ -83,293 +222,43 @@ def accueil(
 
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
+        name="recherche.html",
         context={
             "request": request,
             "annonces": annonces
         }
     )
 
+    # ==================================================
+    # REQUÊTE DE BASE
+    # ==================================================
 
-# ======================================================
-# RECHERCHE DE BIENS
-# ======================================================
-
-@app.get("/recherche")
-def recherche_biens(
-    request: Request,
-    type_bien: str = "",
-    region: str = "",
-    ville: str = "",
-    prix_min: float = 0,
-    prix_max: float = 0,
-    db: Session = Depends(get_db)
-):
-
-    requete = db.query(Annonce)
-
-    # --------------------------------------------------
-    # TYPE DE BIEN
-    # --------------------------------------------------
-
-    if type_bien:
-
-        requete = requete.filter(
-            Annonce.type_bien == type_bien
-        )
+    query = db.query(Annonce)
 
 
-    # --------------------------------------------------
-    # REGION
-    # --------------------------------------------------
+    # ==================================================
+    # ANNONCES VALIDES
+    # ==================================================
 
-    if region:
-
-        requete = requete.filter(
-            Annonce.region == region
-        )
-
-
-    # --------------------------------------------------
-    # VILLE
-    # --------------------------------------------------
-
-    if ville:
-
-        requete = requete.filter(
-            Annonce.ville == ville
-        )
-
-
-    # --------------------------------------------------
-    # PRIX MINIMUM
-    # --------------------------------------------------
-
-    if prix_min and prix_min > 0:
-
-        requete = requete.filter(
-            Annonce.prix >= prix_min
-        )
-
-
-    # --------------------------------------------------
-    # PRIX MAXIMUM
-    # --------------------------------------------------
-
-    if prix_max and prix_max > 0:
-
-        requete = requete.filter(
-            Annonce.prix <= prix_max
-        )
-
-
-    # --------------------------------------------------
-    # UNIQUEMENT LES ANNONCES VALIDES
-    # --------------------------------------------------
-
-    requete = requete.filter(
+    query = query.filter(
         Annonce.statut != "brouillon"
     )
 
 
-    # --------------------------------------------------
-    # TRI
-    # --------------------------------------------------
-
-    annonces = (
-        requete
-        .order_by(
-            Annonce.premium.desc(),
-            Annonce.date_creation.desc()
-        )
-        .all()
-    )
-
-
-    # --------------------------------------------------
-    # AFFICHAGE
-    # --------------------------------------------------
-
-    return templates.TemplateResponse(
-        request=request,
-        name="search.html",
-        context={
-            "request": request,
-            "annonces": annonces,
-            "type_bien": type_bien,
-            "region": region,
-            "ville": ville,
-            "prix_min": prix_min,
-            "prix_max": prix_max
-        }
-    )
-
-    # --------------------------------------------------
-    # EXECUTION
-    # --------------------------------------------------
-
-    annonces = query.order_by(
-        Annonce.date_creation.desc()
-    ).all()
-
-    return templates.TemplateResponse(
-        request=request,
-        name="resultats.html",
-        context={
-            "request": request,
-            "annonces": annonces,
-            "type_bien": type_bien,
-            "prix_min": prix_min,
-            "prix_max": prix_max,
-            "region": region,
-            "zone": zone
-        }
-    )
-
-    # --------------------------------------------------
-    # RESULTATS
-    # --------------------------------------------------
-
-    annonces = query.order_by(
-        Annonce.date_creation.desc()
-    ).all()
-
-    return templates.TemplateResponse(
-        request=request,
-        name="resultats.html",
-        context={
-            "request": request,
-            "annonces": annonces,
-            "type_bien": type_bien,
-            "prix_min": prix_min,
-            "prix_max": prix_max,
-            "region": region,
-            "zone": zone,
-        }
-    )
-
-    # =================================================
-    # VERIFICATION DU TYPE DE BIEN
-    # =================================================
-
-    if not categorie:
-
-        return templates.TemplateResponse(
-            request=request,
-            name="resultats.html",
-            context={
-                "request": request,
-                "annonces": [],
-                "erreur": "Veuillez sélectionner un type de bien.",
-                "categorie": categorie,
-                "prix_min": prix_min,
-                "prix_max": prix_max,
-                "region": region,
-                "localisation": localisation
-            },
-            status_code=400
-        )
-
-    # =================================================
-    # VERIFICATION DES PRIX
-    # =================================================
-
-    try:
-
-        prix_min_float = float(prix_min)
-        prix_max_float = float(prix_max)
-
-    except (ValueError, TypeError):
-
-        return templates.TemplateResponse(
-            request=request,
-            name="resultats.html",
-            context={
-                "request": request,
-                "annonces": [],
-                "erreur": "Veuillez saisir une fourchette de prix valide.",
-                "categorie": categorie,
-                "prix_min": prix_min,
-                "prix_max": prix_max,
-                "region": region,
-                "localisation": localisation
-            },
-            status_code=400
-        )
-
-    # =================================================
-    # VERIFICATION COHERENCE DES PRIX
-    # =================================================
-
-    if prix_min_float < 0 or prix_max_float < 0:
-
-        return templates.TemplateResponse(
-            request=request,
-            name="resultats.html",
-            context={
-                "request": request,
-                "annonces": [],
-                "erreur": "Les prix doivent être positifs.",
-                "categorie": categorie,
-                "prix_min": prix_min,
-                "prix_max": prix_max,
-                "region": region,
-                "localisation": localisation
-            },
-            status_code=400
-        )
-
-    if prix_min_float > prix_max_float:
-
-        return templates.TemplateResponse(
-            request=request,
-            name="resultats.html",
-            context={
-                "request": request,
-                "annonces": [],
-                "erreur": "Le prix minimum ne peut pas être supérieur au prix maximum.",
-                "categorie": categorie,
-                "prix_min": prix_min,
-                "prix_max": prix_max,
-                "region": region,
-                "localisation": localisation
-            },
-            status_code=400
-        )
-
-    # =================================================
-    # CONSTRUCTION DE LA REQUETE
-    # =================================================
-
-    query = db.query(Annonce)
-
-    # -------------------------------------------------
+    # ==================================================
     # TYPE DE BIEN
-    # -------------------------------------------------
+    # ==================================================
 
-    query = query.filter(
-        Annonce.categorie == categorie
-    )
+    if type_bien:
 
-    # -------------------------------------------------
-    # PRIX MINIMUM
-    # -------------------------------------------------
+        query = query.filter(
+            Annonce.type_bien == type_bien
+        )
 
-    query = query.filter(
-        Annonce.prix >= prix_min_float
-    )
 
-    # -------------------------------------------------
-    # PRIX MAXIMUM
-    # -------------------------------------------------
-
-    query = query.filter(
-        Annonce.prix <= prix_max_float
-    )
-
-    # -------------------------------------------------
-    # REGION
-    # -------------------------------------------------
+    # ==================================================
+    # RÉGION
+    # ==================================================
 
     if region:
 
@@ -379,37 +268,58 @@ def recherche_biens(
             )
         )
 
-    # -------------------------------------------------
-    # COMMUNE / QUARTIER / LOCALISATION
-    # -------------------------------------------------
 
-    if localisation:
+    # ==================================================
+    # VILLE
+    # ==================================================
 
-        recherche_localisation = (
-            f"%{localisation}%"
-        )
+    if ville:
 
         query = query.filter(
-            (Annonce.localisation.ilike(
-                recherche_localisation
-            ))
-            |
-            (Annonce.ville.ilike(
-                recherche_localisation
-            ))
-            |
-            (Annonce.quartier.ilike(
-                recherche_localisation
-            ))
-            |
-            (Annonce.adresse.ilike(
-                recherche_localisation
-            ))
+            Annonce.ville.ilike(
+                f"%{ville}%"
+            )
         )
 
-    # =================================================
-    # EXECUTION
-    # =================================================
+
+    # ==================================================
+    # QUARTIER
+    # ==================================================
+
+    if quartier:
+
+        query = query.filter(
+            Annonce.quartier.ilike(
+                f"%{quartier}%"
+            )
+        )
+
+
+    # ==================================================
+    # PRIX MINIMUM
+    # ==================================================
+
+    if prix_min and prix_min > 0:
+
+        query = query.filter(
+            Annonce.prix >= prix_min
+        )
+
+
+    # ==================================================
+    # PRIX MAXIMUM
+    # ==================================================
+
+    if prix_max and prix_max > 0:
+
+        query = query.filter(
+            Annonce.prix <= prix_max
+        )
+
+
+    # ==================================================
+    # TRI
+    # ==================================================
 
     annonces = (
         query
@@ -420,9 +330,146 @@ def recherche_biens(
         .all()
     )
 
-    # =================================================
-    # RESULTATS
-    # =================================================
+
+    # ==================================================
+    # AFFICHAGE DES RÉSULTATS
+    # ==================================================
+
+    return templates.TemplateResponse(
+        request=request,
+        name="resultats.html",
+        context={
+            "request": request,
+
+            "annonces": annonces,
+
+            "type_bien": type_bien,
+            "region": region,
+            "ville": ville,
+            "quartier": quartier,
+
+            "prix_min": prix_min,
+            "prix_max": prix_max,
+
+            "nombre_resultats": len(annonces)
+        }
+    )
+
+
+# ======================================================
+# RECHERCHE AVANCÉE PAR LOCALISATION
+# ======================================================
+
+@app.get("/recherche-avancee")
+def recherche_avancee(
+    request: Request,
+
+    type_bien: str = "",
+    localisation: str = "",
+
+    prix_min: float = 0,
+    prix_max: float = 0,
+
+    db: Session = Depends(get_db)
+):
+
+    query = db.query(Annonce)
+
+
+    # ==================================================
+    # ANNONCES VALIDES
+    # ==================================================
+
+    query = query.filter(
+        Annonce.statut != "brouillon"
+    )
+
+
+    # ==================================================
+    # TYPE DE BIEN
+    # ==================================================
+
+    if type_bien:
+
+        query = query.filter(
+            Annonce.type_bien == type_bien
+        )
+
+
+    # ==================================================
+    # PRIX MINIMUM
+    # ==================================================
+
+    if prix_min > 0:
+
+        query = query.filter(
+            Annonce.prix >= prix_min
+        )
+
+
+    # ==================================================
+    # PRIX MAXIMUM
+    # ==================================================
+
+    if prix_max > 0:
+
+        query = query.filter(
+            Annonce.prix <= prix_max
+        )
+
+
+    # ==================================================
+    # RECHERCHE LOCALISATION
+    # ==================================================
+
+    if localisation:
+
+        recherche_localisation = (
+            f"%{localisation}%"
+        )
+
+        query = query.filter(
+            or_(
+                Annonce.localisation.ilike(
+                    recherche_localisation
+                ),
+
+                Annonce.region.ilike(
+                    recherche_localisation
+                ),
+
+                Annonce.ville.ilike(
+                    recherche_localisation
+                ),
+
+                Annonce.quartier.ilike(
+                    recherche_localisation
+                ),
+
+                Annonce.adresse.ilike(
+                    recherche_localisation
+                )
+            )
+        )
+
+
+    # ==================================================
+    # RÉSULTATS
+    # ==================================================
+
+    annonces = (
+        query
+        .order_by(
+            Annonce.premium.desc(),
+            Annonce.date_creation.desc()
+        )
+        .all()
+    )
+
+
+    # ==================================================
+    # AFFICHAGE
+    # ==================================================
 
     return templates.TemplateResponse(
         request=request,
@@ -430,18 +477,21 @@ def recherche_biens(
         context={
             "request": request,
             "annonces": annonces,
-            "categorie": categorie,
+
+            "type_bien": type_bien,
+            "localisation": localisation,
+
             "prix_min": prix_min,
             "prix_max": prix_max,
-            "region": region,
-            "localisation": localisation,
+
             "nombre_resultats": len(annonces)
         }
     )
 
-# =====================================================
+
+# ======================================================
 # LOGIN
-# =====================================================
+# ======================================================
 
 @app.get("/login")
 def login(request: Request):
