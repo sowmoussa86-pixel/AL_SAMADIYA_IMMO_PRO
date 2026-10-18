@@ -71,12 +71,19 @@ app.add_middleware(
 # FICHIERS STATIQUES / IMAGES
 # ============================================================
 
+# Dossier static (css, images/banner.png, js)
+app.mount(
+    "/static",
+    StaticFiles(directory="static"),
+    name="static",
+)
+
+# Dossier uploads (annonces)
 app.mount(
     "/uploads",
     StaticFiles(directory="uploads"),
     name="uploads",
 )
-
 
 # ============================================================
 # TEMPLATES
