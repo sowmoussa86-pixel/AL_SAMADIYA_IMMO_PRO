@@ -20,7 +20,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-
+from backend.services.social_publisher import publier_annonce_auto
 from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 
@@ -733,7 +733,14 @@ async def enregistrer_annonce(
             )
 
             db.add(image_annonce)
-
+    # Publication auto Réseaux Sociaux
+    try:
+        url_image = None
+        if 'image_annonce' in locals() and image_annonce:
+            url_image = f"https://al-samadiya-immo-pro.onrender.com{image_annonce.chemin}"
+        publier_annonce_auto(annonce, url_image)
+    except Exception as e:
+        print(f"⚠️ Social publish error: {e}")
     db.commit()
     db.refresh(annonce)
 
